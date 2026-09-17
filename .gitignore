@@ -1,0 +1,19 @@
+# Local working directories (backups, release archives, collected data, tool state)
+live-backups/
+releases/
+manual-collection-results/
+.manual-collection-*/
+.workbuddy/
+.zcode/
+
+# Packed data build workspace (separate repository)
+.qfx-packed-data-work/
+
+# Local screenshots and reports
+/*.png
+/*报告*.md
+
+# Python artifacts
+__pycache__/
+*.pyc
+.pytest_cache/

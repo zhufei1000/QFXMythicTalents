@@ -1,4 +1,4 @@
--- QFXMythicTalents EllesmereUI skin bridge (developer guide: SKINNING_API.md in
+-- QFXTalents EllesmereUI skin bridge (developer guide: SKINNING_API.md in
 -- the EllesmereUI addon). EUI invokes the registered function once per session
 -- with a skinning facade S built for this addon; every primitive is idempotent
 -- and follows the user's live theme, so frames created later are handed over as

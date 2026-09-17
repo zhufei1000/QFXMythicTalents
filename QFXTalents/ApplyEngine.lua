@@ -1,7 +1,7 @@
--- QFXMythicTalents ApplyEngine: delegates complete loadout import/export to
+-- QFXTalents ApplyEngine: delegates complete loadout import/export to
 -- Blizzard's talent UI. No direct node refund or purchase fallback is used.
 
-local API = _G.QFXMythicTalents
+local API = _G.QFXTalents
 
 local pendingCombatRequest
 local EMPTY_TRANSLATIONS = {}

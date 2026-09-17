@@ -1,13 +1,13 @@
 local ADDON, ns = ...
 
-local API = _G.QFXMythicTalents or {}
-_G.QFXMythicTalents = API
+local API = _G.QFXTalents or {}
+_G.QFXTalents = API
 
 API.API_VERSION = 1
 API.DATA_API_VERSION = 2
 API.VERSION = C_AddOns and C_AddOns.GetAddOnMetadata
     and C_AddOns.GetAddOnMetadata(ADDON, "Version")
-    or "0.7.3"
+    or "0.8.0"
 API.providers = API.providers or {}
 API.specProviders = API.specProviders or {}
 API.manifest = API.manifest or nil
@@ -422,7 +422,7 @@ end
 
 local L = {
     zhCN = {
-        title = "群飞轩天赋推荐",
+        title = "QFXTalents",
         sample = "样本",
         noData = "当前专精暂无数据",
         parsing = "正在解析天赋数据…",
@@ -468,7 +468,7 @@ local L = {
         tleDetected = "检测到 TalentLoadoutsEx，已隐藏本地方案列表",
     },
     zhTW = {
-        title = "群飛軒天賦推薦",
+        title = "QFXTalents",
         sample = "樣本",
         noData = "目前專精暫無資料",
         parsing = "正在解析天賦資料…",
@@ -514,7 +514,7 @@ local L = {
         tleDetected = "偵測到 TalentLoadoutsEx，已隱藏本地方案列表",
     },
     enUS = {
-        title = "QFX Talent Recommendations",
+        title = "QFXTalents",
         sample = "Samples",
         noData = "No data for the current specialization",
         parsing = "Parsing talent data…",
@@ -2064,8 +2064,8 @@ end
 local function SetPercentagesEnabled(enabled, persist)
     percentagesEnabled = not not enabled
     if persist then
-        QFXMythicTalentsDB = QFXMythicTalentsDB or {}
-        QFXMythicTalentsDB.showPercentages = percentagesEnabled
+        QFXTalentsDB = QFXTalentsDB or {}
+        QFXTalentsDB.showPercentages = percentagesEnabled
     end
     if sidePanel and sidePanel.PercentageToggleButton then
         sidePanel.PercentageToggleButton:SetText(PercentageToggleText())
@@ -2286,8 +2286,8 @@ local function SelectDungeon(dungeonID, automatic)
     end
     selectedMode = "dungeon"
     selectedDungeonID = dungeonID
-    QFXMythicTalentsDB.lastDungeonID = dungeonID
-    QFXMythicTalentsDB.lastMode = selectedMode
+    QFXTalentsDB.lastDungeonID = dungeonID
+    QFXTalentsDB.lastMode = selectedMode
     ResetRecommendationState()
     RefreshPanelSelection()
     UpdatePanelText(automatic and T.auto or T.manual)
@@ -2302,10 +2302,10 @@ local function SelectBoss(raidID, bossID, automatic)
     selectedRaidID = raidID
     selectedBossID = bossID
     -- 难度在加载时已从 SavedVariables 恢复（ADDON_LOADED），此处不再自赋值。
-    QFXMythicTalentsDB.lastMode = selectedMode
-    QFXMythicTalentsDB.lastRaidID = raidID
-    QFXMythicTalentsDB.lastBossID = bossID
-    QFXMythicTalentsDB.lastRaidDifficultyID = selectedRaidDifficultyID
+    QFXTalentsDB.lastMode = selectedMode
+    QFXTalentsDB.lastRaidID = raidID
+    QFXTalentsDB.lastBossID = bossID
+    QFXTalentsDB.lastRaidDifficultyID = selectedRaidDifficultyID
     ResetRecommendationState()
     RefreshPanelSelection()
     UpdatePanelText(automatic and T.auto or T.manual)
@@ -2318,8 +2318,8 @@ local function SelectRaidDifficulty(difficultyID, automatic)
     end
     selectedMode = "raid"
     selectedRaidDifficultyID = difficultyID
-    QFXMythicTalentsDB.lastMode = selectedMode
-    QFXMythicTalentsDB.lastRaidDifficultyID = difficultyID
+    QFXTalentsDB.lastMode = selectedMode
+    QFXTalentsDB.lastRaidDifficultyID = difficultyID
     ResetRecommendationState()
     if RebuildContentButtons then
         RebuildContentButtons()
@@ -2338,7 +2338,7 @@ local function SetMode(mode)
         return
     end
     selectedMode = mode
-    QFXMythicTalentsDB.lastMode = mode
+    QFXTalentsDB.lastMode = mode
     ResetRecommendationState()
     if RebuildContentButtons then
         RebuildContentButtons()
@@ -2352,7 +2352,7 @@ local function AutoSelectContent()
         -- could present a valid-looking recommendation for the wrong boss.
         local raidID = DetectRaid()
         local raid = raidID and FindRaid(raidID)
-        local bossID = QFXMythicTalentsDB and QFXMythicTalentsDB.lastBossID
+        local bossID = QFXTalentsDB and QFXTalentsDB.lastBossID
         if not FindBoss(raidID, bossID) then
             bossID = raid and raid.bosses and raid.bosses[1] and raid.bosses[1].id
         end
@@ -2377,7 +2377,7 @@ local function AutoSelectContent()
         return
     end
 
-    local saved = QFXMythicTalentsDB and QFXMythicTalentsDB.lastDungeonID
+    local saved = QFXTalentsDB and QFXTalentsDB.lastDungeonID
     if saved and GetRecommendation(CurrentSpecID(), saved) then
         SelectDungeon(saved, false)
     else
@@ -2795,7 +2795,7 @@ local function CreateSidePanel()
         return
     end
 
-    sidePanel = CreateFrame("Frame", "QFXMythicTalentsDungeonPanel", UIParent, "BackdropTemplate")
+    sidePanel = CreateFrame("Frame", "QFXTalentsPanel", UIParent, "BackdropTemplate")
     sidePanel:SetSize(200, 700)
     sidePanel:SetFrameStrata("DIALOG")
     sidePanel:SetClampedToScreen(true)
@@ -2852,7 +2852,7 @@ local function CreateSidePanel()
     sidePanel.DungeonTab:SetScript("OnClick", function()
         SetMode("dungeon")
         local dungeonID = selectedDungeonID
-            or (QFXMythicTalentsDB and QFXMythicTalentsDB.lastDungeonID)
+            or (QFXTalentsDB and QFXTalentsDB.lastDungeonID)
             or (GetDungeons()[1] and GetDungeons()[1].id)
         if dungeonID then
             SelectDungeon(dungeonID, false)
@@ -3276,12 +3276,12 @@ frameEvents:RegisterEvent("PLAYER_LOGIN")
 frameEvents:SetScript("OnEvent", function(_, event, arg1)
     if event == "ADDON_LOADED" then
         if arg1 == ADDON then
-            QFXMythicTalentsDB = QFXMythicTalentsDB or {}
-            QFXMythicTalentsDB.loadouts = QFXMythicTalentsDB.loadouts or {}
+            QFXTalentsDB = QFXTalentsDB or {}
+            QFXTalentsDB.loadouts = QFXTalentsDB.loadouts or {}
             pluginSuspended = false
-            QFXMythicTalentsDB.enabled = nil
-            percentagesEnabled = QFXMythicTalentsDB.showPercentages ~= false
-            local savedDifficulty = QFXMythicTalentsDB.lastRaidDifficultyID
+            QFXTalentsDB.enabled = nil
+            percentagesEnabled = QFXTalentsDB.showPercentages ~= false
+            local savedDifficulty = QFXTalentsDB.lastRaidDifficultyID
             if savedDifficulty == RAID_DIFFICULTY_HEROIC or savedDifficulty == RAID_DIFFICULTY_MYTHIC then
                 selectedRaidDifficultyID = savedDifficulty
             end
@@ -3296,20 +3296,20 @@ frameEvents:SetScript("OnEvent", function(_, event, arg1)
 
     if event == "PLAYER_LOGIN" then
         frameEvents:UnregisterEvent("PLAYER_LOGIN")
-        SLASH_QFXMYTHICTALENTS1 = "/qmt"
-        SLASH_QFXMYTHICTALENTS2 = "/qfxmt"
-        SlashCmdList.QFXMYTHICTALENTS = function(message)
+        SLASH_QFXTALENTS1 = "/qmt"
+        SLASH_QFXTALENTS2 = "/qfxmt"
+        SlashCmdList.QFXTALENTS = function(message)
             local command = strtrim(string.lower(message or ""))
             if command == "off" or command == "disable" then
                 SuspendAddon()
-                print("|cff00ccffQFX Talent Recommendations|r disabled for this session; use /qmt to re-enable.")
+                print("|cff00ccffQFXTalents|r disabled for this session; use /qmt to re-enable.")
                 return
             end
             OpenTalentFrame()
         end
 
-        SLASH_QFXMYTHICTALENTSDATA1 = "/qmtdb"
-        SlashCmdList.QFXMYTHICTALENTSDATA = function()
+        SLASH_QFXTALENTSDATA1 = "/qmtdb"
+        SlashCmdList.QFXTALENTSDATA = function()
             local isLoaded = C_AddOns and C_AddOns.IsAddOnLoaded
             local function Loaded(name)
                 return isLoaded and not not isLoaded(name) or false
@@ -3326,8 +3326,8 @@ frameEvents:SetScript("OnEvent", function(_, event, arg1)
             ))
         end
 
-        SLASH_QFXMYTHICTALENTSSTATE1 = "/qmtstate"
-        SlashCmdList.QFXMYTHICTALENTSSTATE = function()
+        SLASH_QFXTALENTSSTATE1 = "/qmtstate"
+        SlashCmdList.QFXTALENTSSTATE = function()
             local backend = GetUnifiedDataAPI()
             local active = not pluginSuspended
                 and IsTalentFrameVisible()
@@ -3345,7 +3345,7 @@ frameEvents:SetScript("OnEvent", function(_, event, arg1)
         end
 
         InitializeBlizzardUI()
-        print("|cff00ccffQFX Talent Recommendations|r：" .. T.command)
+        print("|cff00ccffQFXTalents|r：" .. T.command)
         return
     end
 

@@ -1,8 +1,8 @@
-# QFXMythicTalents
+# QFXTalents
 
-QFXMythicTalents is a World of Warcraft addon that shows Mythic+ dungeon and
-raid boss talent recommendations on the Blizzard talent frame, with one-click
-apply and a personal loadout list.
+QFXTalents is a World of Warcraft addon that shows Mythic+ dungeon and raid boss
+talent recommendations on the Blizzard talent frame, with one-click apply and a
+personal loadout list.
 
 ## Features
 
@@ -22,7 +22,7 @@ apply and a personal loadout list.
 
 ## Contents
 
-- `QFXMythicTalents/` - the addon itself (TOC, Lua sources, dev tools in `tools/`)
+- `QFXTalents/` - the addon itself (TOC, Lua sources, dev tools in `tools/`)
 
 ## Notes
 

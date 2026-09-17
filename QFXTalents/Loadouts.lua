@@ -1,10 +1,10 @@
--- QFXMythicTalents Loadouts: personal loadout management embedded in the
+-- QFXTalents Loadouts: personal loadout management embedded in the
 -- recommendation panel. Personal loadouts are stored per specialization in
--- QFXMythicTalentsDB.loadouts and applied through ApplyEngine.
+-- QFXTalentsDB.loadouts and applied through ApplyEngine.
 
 local ADDON, ns = ...
 
-local API = _G.QFXMythicTalents
+local API = _G.QFXTalents
 
 local Loadouts = {}
 API.Loadouts = Loadouts
@@ -29,7 +29,7 @@ local function T()
 end
 
 local function SpecList()
-    local root = _G.QFXMythicTalentsDB
+    local root = _G.QFXTalentsDB
     if not root then
         return nil
     end
@@ -98,7 +98,7 @@ local function SaveLoadout(name)
         Message(T().saveFailed, 1, 0.4, 0.2)
         local reason = not ok and text or API.lastLoadoutError
         if reason then
-            print("|cff00ccffQFX Talent Recommendations|r: save failed - " .. tostring(reason))
+            print("|cff00ccffQFXTalents|r: save failed - " .. tostring(reason))
         end
         return
     end
@@ -194,7 +194,7 @@ local function GetPopupEditBox(dialog)
     return dialog and (dialog.EditBox or dialog.editBox) or nil
 end
 
-StaticPopupDialogs["QFXMT_SAVE_LOADOUT"] = {
+StaticPopupDialogs["QFXTALENTS_SAVE_LOADOUT"] = {
     text = T().saveTitle or "Save current talent loadout",
     button1 = ACCEPT,
     button2 = CANCEL,
@@ -226,7 +226,7 @@ StaticPopupDialogs["QFXMT_SAVE_LOADOUT"] = {
     preferredIndex = 3,
 }
 
-StaticPopupDialogs["QFXMT_RENAME_LOADOUT"] = {
+StaticPopupDialogs["QFXTALENTS_RENAME_LOADOUT"] = {
     text = T().renameTitle or "Rename loadout",
     button1 = ACCEPT,
     button2 = CANCEL,
@@ -260,7 +260,7 @@ StaticPopupDialogs["QFXMT_RENAME_LOADOUT"] = {
     preferredIndex = 3,
 }
 
-StaticPopupDialogs["QFXMT_DELETE_LOADOUT"] = {
+StaticPopupDialogs["QFXTALENTS_DELETE_LOADOUT"] = {
     text = T().deleteConfirm or "Delete %s?",
     button1 = YES,
     button2 = NO,
@@ -548,7 +548,7 @@ function Loadouts.Populate(parent)
             Message(T().combatButtons, 1, 0.55, 0.10)
             return
         end
-        StaticPopup_Show("QFXMT_SAVE_LOADOUT")
+        StaticPopup_Show("QFXTALENTS_SAVE_LOADOUT")
     end, { "BOTTOMLEFT", section, "BOTTOMLEFT", 3, 30 })
 
     CreateActionButton(section, "load", T().load, function()
@@ -560,7 +560,7 @@ function Loadouts.Populate(parent)
             Message(T().combatButtons, 1, 0.55, 0.10)
             return
         end
-        StaticPopup_Show("QFXMT_RENAME_LOADOUT")
+        StaticPopup_Show("QFXTALENTS_RENAME_LOADOUT")
     end, { "BOTTOMRIGHT", section, "BOTTOMRIGHT", -3, 30 })
 
     CreateActionButton(section, "moveUp", T().moveUp, function()
@@ -574,7 +574,7 @@ function Loadouts.Populate(parent)
         end
         local list = SpecList()
         local entry = list and selectedIndex and list[selectedIndex]
-        StaticPopup_Show("QFXMT_DELETE_LOADOUT", entry and entry.name or "")
+        StaticPopup_Show("QFXTALENTS_DELETE_LOADOUT", entry and entry.name or "")
     end, { "BOTTOM", section, "BOTTOM", 0, 4 })
 
     CreateActionButton(section, "moveDown", T().moveDown, function()
@@ -629,7 +629,7 @@ local function UpdateSuppression()
         end
         if not suppressionAnnounced then
             suppressionAnnounced = true
-            print("|cff00ccffQFX Talent Recommendations|r：" .. T().tleDetected)
+            print("|cff00ccffQFXTalents|r：" .. T().tleDetected)
         end
     else
         if section then

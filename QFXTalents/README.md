@@ -1,4 +1,11 @@
-# QFX Talent Recommendations 0.7.3
+# QFXTalents 0.8.0
+
+## 0.8.0 插件更名为 QFXTalents
+
+- 插件目录、TOC 与界面名称统一改为 `QFXTalents`（不再限定“大秘境”，同时覆盖大秘境与团本推荐）。
+- SavedVariables 由 `QFXMythicTalentsDB` 改为 `QFXTalentsDB`：首次安装新目录时，如 WTF 中仍存在旧版 `SavedVariables\QFXMythicTalents.lua`，请将其中的变量名改为 `QFXTalentsDB` 后另存为 `SavedVariables\QFXTalents.lua`（本地方案与上次选择都会保留）。
+- 对外接口表由 `QFXMythicTalents` 改为 `QFXTalents`；数据包 `QFXTalentData` 的对接方式不变，无需更新数据包。
+- 斜杠命令保持 `/qmt`、`/qfxmt`、`/qmtdb`、`/qmtstate` 不变。
 
 ## 0.7.3 EUI 主题下的选中效果
 
@@ -73,7 +80,7 @@
 - "导入推荐"改为"应用推荐"：不再打开暴雪导入窗口，直接通过 `C_Traits` 节点 API 写入天赋树并自动提交；战斗中自动延迟到脱战，观察他人时禁用，直接应用失败时回退到暴雪原生导入窗口。
 - 应用引擎完整处理英雄天赋子树切换（`ResetTreeByCurrency`）、顶点多等级节点、初始天赋方案（Starter Build）与多轮依赖购买。
 - 副本/首领列表改为固定高度的滚动列表，放不下时出现滚动条，并自动把当前选中项滚动到可见范围。
-- 个人方案按专精保存于 `QFXMythicTalentsDB.loadouts`，支持保存/载入/重命名/删除/上移/下移，列表显示当前已加载的 ✓ 标记。
+- 个人方案按专精保存于 `QFXTalentsDB.loadouts`，支持保存/载入/重命名/删除/上移/下移，列表显示当前已加载的 ✓ 标记。
 - 检测到原版 TalentLoadoutsEx 时自动隐藏本地方案列表并将面板让位到其右侧，避免重叠。
 - 数据库格式与采集管线完全不变；UI 上用户只看到节点百分比，推荐字符串仅在后台用于应用。
 

@@ -1,5 +1,5 @@
 -- Build one load-on-demand data addon per specialization from the generated
--- class providers. Run from the QFXMythicTalents core addon directory.
+-- class providers. Run from the QFXTalents core addon directory.
 
 local sourceRoot = "../QFXTalentData"
 local outputPrefix = "../QFXTalentData_Spec_"

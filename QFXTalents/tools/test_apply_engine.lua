@@ -5,7 +5,7 @@ local messages = {}
 local inCombat = false
 local eventHandler
 
-_G.QFXMythicTalents = {
+_G.QFXTalents = {
     T = {
         applyImportStarted = "official import started",
         applyFailed = "failed",
@@ -37,7 +37,7 @@ local talentFrame = {
     end,
 }
 
-function _G.QFXMythicTalents:GetTalentFrame()
+function _G.QFXTalents:GetTalentFrame()
     return talentFrame
 end
 
@@ -61,21 +61,21 @@ _G.CreateFrame = function()
     }
 end
 
-assert(loadfile(source))("QFXMythicTalents")
+assert(loadfile(source))("QFXTalents")
 
-local ok, status = _G.QFXMythicTalents.ApplyLoadoutText("LOADOUT", "QFX Test")
+local ok, status = _G.QFXTalents.ApplyLoadoutText("LOADOUT", "QFX Test")
 assert(ok and status == "IMPORTING")
 assert(#imported == 1)
 assert(imported[1].text == "LOADOUT" and imported[1].name == "QFX Test")
 assert(messages[#messages] == "official import started")
-assert(_G.QFXMythicTalents.ExportCurrentLoadout() == "EXPORTED")
+assert(_G.QFXTalents.ExportCurrentLoadout() == "EXPORTED")
 
-ok, status = _G.QFXMythicTalents.ApplyLoadoutText("REJECT", "Rejected")
+ok, status = _G.QFXTalents.ApplyLoadoutText("REJECT", "Rejected")
 assert(not ok and status == "IMPORT_FAILED")
 assert(#imported == 2, "a rejected official import must not fall back to node staging")
 
 inCombat = true
-ok, status = _G.QFXMythicTalents.ApplyLoadoutText("DEFERRED", "Deferred Name")
+ok, status = _G.QFXTalents.ApplyLoadoutText("DEFERRED", "Deferred Name")
 assert(ok and status == "DEFERRED")
 assert(#imported == 2)
 inCombat = false
@@ -84,12 +84,12 @@ eventHandler(nil, "PLAYER_REGEN_ENABLED")
 assert(#imported == 3)
 assert(imported[3].text == "DEFERRED" and imported[3].name == "Deferred Name")
 
-ok, status = _G.QFXMythicTalents.ApplyLoadoutText("DEFAULT")
+ok, status = _G.QFXTalents.ApplyLoadoutText("DEFAULT")
 assert(ok and status == "IMPORTING")
 assert(imported[4].name == "QFX Recommendation")
 
 talentFrame.ImportLoadout = nil
-ok, status = _G.QFXMythicTalents.ApplyLoadoutText("NO FALLBACK", "Unavailable")
+ok, status = _G.QFXTalents.ApplyLoadoutText("NO FALLBACK", "Unavailable")
 assert(not ok and status == "OFFICIAL_UNAVAILABLE")
 assert(#imported == 4, "the removed node-staging fallback must not run")
 
@@ -160,7 +160,7 @@ end
 
 -- First apply: the two leftover QFX configs (10, 20) are pruned before the
 -- import; the import's own config (40) becomes active and must survive.
-ok, status = _G.QFXMythicTalents.ApplyLoadoutText("PRUNED", "QFX_Dungeon_Priest")
+ok, status = _G.QFXTalents.ApplyLoadoutText("PRUNED", "QFX_Dungeon_Priest")
 assert(ok and status == "IMPORTING")
 assert(configs[10] == nil and configs[20] == nil, "leftover QFX configs must be deleted")
 assert(configs[40] ~= nil and configs[40].name == "QFX_Dungeon_Priest", "the import's config must survive")
@@ -169,14 +169,14 @@ assert(#deletedConfigs == 2, "expected the two leftovers to be deleted, got " ..
 
 -- Second apply with the same name: the previous QFX config (40) is stale and
 -- replaced by 41. Exactly one auto-generated config must remain.
-ok, status = _G.QFXMythicTalents.ApplyLoadoutText("PRUNED AGAIN", "QFX_Dungeon_Priest")
+ok, status = _G.QFXTalents.ApplyLoadoutText("PRUNED AGAIN", "QFX_Dungeon_Priest")
 assert(ok and status == "IMPORTING")
 assert(configs[40] == nil, "the previous same-named QFX config must be replaced, not accumulated")
 assert(configs[41] ~= nil and configs[41].name == "QFX_Dungeon_Priest")
 assert(AutoConfigCount() == 1, "exactly one auto-generated config must remain, got " .. AutoConfigCount())
 
 -- Applying a personal (non-QFX) loadout must not prune anything.
-ok, status = _G.QFXMythicTalents.ApplyLoadoutText("PERSONAL", "My Personal Build")
+ok, status = _G.QFXTalents.ApplyLoadoutText("PERSONAL", "My Personal Build")
 assert(ok and status == "IMPORTING")
 assert(configs[41] ~= nil, "applying a personal loadout must keep the QFX config")
 assert(configs[42] ~= nil and configs[42].name == "My Personal Build")
@@ -189,7 +189,7 @@ talentFrame.ImportLoadout = function(_, text, name)
     return true
 end
 local deletedBefore = #deletedConfigs
-ok, status = _G.QFXMythicTalents.ApplyLoadoutText("IN PLACE", "QFX_InPlace_Priest")
+ok, status = _G.QFXTalents.ApplyLoadoutText("IN PLACE", "QFX_InPlace_Priest")
 assert(ok and status == "IMPORTING")
 assert(
     #deletedConfigs == deletedBefore + 1,

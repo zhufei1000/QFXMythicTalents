@@ -353,14 +353,14 @@ if ns.RegisterEUISkinLooks then
 end
 
 local function InitRow(button, elementData)
-    if not button.qfxmtRowBuilt then
-        button.qfxmtRowBuilt = true
+    if not button.qfxtRowBuilt then
+        button.qfxtRowBuilt = true
         CreateRowVisuals(button)
         ns.RegisterEUISkin(button, "button")
         -- One set of handlers per pooled row; they read the row's stored data
         -- instead of capturing per-refresh closures.
         button:SetScript("OnClick", function(self)
-            local rowData = self.qfxmtRowData
+            local rowData = self.qfxtRowData
             if not rowData or selectedIndex == rowData.index then
                 return
             end
@@ -371,7 +371,7 @@ local function InitRow(button, elementData)
             local frames = scrollBox:GetFrames()
             local updated = false
             for _, row in ipairs(frames) do
-                local otherData = row.qfxmtRowData
+                local otherData = row.qfxtRowData
                 if otherData
                     and (otherData.index == previous or otherData.index == selectedIndex)
                 then
@@ -385,14 +385,14 @@ local function InitRow(button, elementData)
             UpdateButtons()
         end)
         button:SetScript("OnDoubleClick", function(self)
-            local rowData = self.qfxmtRowData
+            local rowData = self.qfxtRowData
             if rowData then
                 selectedIndex = rowData.index
                 LoadSelected()
             end
         end)
         button:SetScript("OnEnter", function(self)
-            local rowData = self.qfxmtRowData
+            local rowData = self.qfxtRowData
             if not rowData then
                 return
             end
@@ -427,7 +427,7 @@ local function InitRow(button, elementData)
     button.SelectedBar:SetShown(isSelected)
     button.SelectedRail:SetShown(isSelected)
 
-    button.qfxmtRowData = elementData
+    button.qfxtRowData = elementData
 end
 
 Rebuild = function()

@@ -391,7 +391,7 @@ local function CancelStatisticsBuild()
 end
 
 CompactDataProvider = function(provider)
-    if type(provider) ~= "table" or type(provider.specs) ~= "table" or provider.qfxmtCompacted then
+    if type(provider) ~= "table" or type(provider.specs) ~= "table" or provider.qfxtCompacted then
         return false
     end
 
@@ -416,7 +416,7 @@ CompactDataProvider = function(provider)
         end
     end
 
-    provider.qfxmtCompacted = true
+    provider.qfxtCompacted = true
     return released
 end
 
@@ -1555,7 +1555,7 @@ local function PercentColor(percent)
 end
 
 local function EnsureButtonRegions(button)
-    if not button.qfxmtPercentText then
+    if not button.qfxtPercentText then
         -- Normal talent nodes use the compact layout from the earlier version:
         -- plain percentage text directly beneath the Blizzard node.
         local font = button:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
@@ -1567,10 +1567,10 @@ local function EnsureButtonRegions(button)
         if fontPath then
             font:SetFont(fontPath, math.max(11, fontSize or 11), "OUTLINE")
         end
-        button.qfxmtPercentText = font
+        button.qfxtPercentText = font
     end
 
-    if not button.qfxmtPercentFrame then
+    if not button.qfxtPercentFrame then
         -- Capstone / apex nodes have extra rank widgets below the main icon.
         -- Give only those nodes an external badge so their percentage is not covered.
         local badge = CreateFrame("Frame", nil, button, "BackdropTemplate")
@@ -1595,17 +1595,17 @@ local function EnsureButtonRegions(button)
             font:SetFont(fontPath, math.max(11, fontSize or 11), "OUTLINE")
         end
 
-        button.qfxmtPercentFrame = badge
-        button.qfxmtPercentBadgeText = font
+        button.qfxtPercentFrame = badge
+        button.qfxtPercentBadgeText = font
     end
 
-    if not button.qfxmtMatchMark then
+    if not button.qfxtMatchMark then
         local mark = button:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
         mark:SetPoint("TOPRIGHT", button, "TOPRIGHT", 5, 5)
         mark:SetJustifyH("RIGHT")
         mark:SetShadowOffset(1, -1)
         mark:SetShadowColor(0, 0, 0, 1)
-        button.qfxmtMatchMark = mark
+        button.qfxtMatchMark = mark
     end
 end
 
@@ -1645,7 +1645,7 @@ local function IsCapstoneNode(button, nodeInfo, nodeID)
 end
 
 local function PositionPercentBadge(button)
-    local badge = button.qfxmtPercentFrame
+    local badge = button.qfxtPercentFrame
     if not badge then
         return
     end
@@ -1738,7 +1738,7 @@ local function GetHeroSelectionState()
 end
 
 local function EnsureHeroSpecRegions(button)
-    if button.qfxmtHeroPercentFrame then
+    if button.qfxtHeroPercentFrame then
         return
     end
 
@@ -1771,12 +1771,12 @@ local function EnsureHeroSpecRegions(button)
         font:SetFont(fontPath, math.max(12, fontSize or 12), "OUTLINE")
     end
 
-    button.qfxmtHeroPercentFrame = badge
-    button.qfxmtHeroPercent = font
+    button.qfxtHeroPercentFrame = badge
+    button.qfxtHeroPercent = font
 end
 
 local function PositionHeroSpecBadge(button)
-    local badge = button and button.qfxmtHeroPercentFrame
+    local badge = button and button.qfxtHeroPercentFrame
     if not badge then
         return
     end
@@ -1796,24 +1796,24 @@ local function DecorateHeroSpecButton()
         return
     end
     if not percentagesEnabled then
-        if button.qfxmtHeroPercent then
-            button.qfxmtHeroPercent:SetText("")
+        if button.qfxtHeroPercent then
+            button.qfxtHeroPercent:SetText("")
         end
-        if button.qfxmtHeroPercentFrame then
-            button.qfxmtHeroPercentFrame:Hide()
+        if button.qfxtHeroPercentFrame then
+            button.qfxtHeroPercentFrame:Hide()
         end
         return
     end
 
     EnsureHeroSpecRegions(button)
-    if not button.qfxmtHeroPercentFrame then
+    if not button.qfxtHeroPercentFrame then
         return
     end
 
     local current, nodeID = GetHeroSelectionState()
     if not current or not nodeID or not currentStats or currentStats.validSamples <= 0 then
-        button.qfxmtHeroPercent:SetText("")
-        button.qfxmtHeroPercentFrame:Hide()
+        button.qfxtHeroPercent:SetText("")
+        button.qfxtHeroPercentFrame:Hide()
         return
     end
 
@@ -1822,10 +1822,10 @@ local function DecorateHeroSpecButton()
     local percent = GetEntryUsagePercent(currentStats, nodeID, current.entryID)
     local r, g, b = PercentColor(percent)
     PositionHeroSpecBadge(button)
-    button.qfxmtHeroPercent:SetText(percent .. "%")
-    button.qfxmtHeroPercent:SetTextColor(r, g, b, 1)
-    button.qfxmtHeroPercentFrame:SetBackdropBorderColor(r, g, b, 0.95)
-    button.qfxmtHeroPercentFrame:Show()
+    button.qfxtHeroPercent:SetText(percent .. "%")
+    button.qfxtHeroPercent:SetTextColor(r, g, b, 1)
+    button.qfxtHeroPercentFrame:SetBackdropBorderColor(r, g, b, 0.95)
+    button.qfxtHeroPercentFrame:Show()
 end
 
 -- 仅选择型节点算"二选一"。当前客户端的多级（Tiered）节点同样是多 entry
@@ -1941,17 +1941,17 @@ end
 
 local function DecorateButton(button)
     if not percentagesEnabled then
-        if button.qfxmtPercentText then
-            button.qfxmtPercentText:SetText("")
+        if button.qfxtPercentText then
+            button.qfxtPercentText:SetText("")
         end
-        if button.qfxmtPercentBadgeText then
-            button.qfxmtPercentBadgeText:SetText("")
+        if button.qfxtPercentBadgeText then
+            button.qfxtPercentBadgeText:SetText("")
         end
-        if button.qfxmtPercentFrame then
-            button.qfxmtPercentFrame:Hide()
+        if button.qfxtPercentFrame then
+            button.qfxtPercentFrame:Hide()
         end
-        if button.qfxmtMatchMark then
-            button.qfxmtMatchMark:SetText("")
+        if button.qfxtMatchMark then
+            button.qfxtMatchMark:SetText("")
         end
         return
     end
@@ -1987,29 +1987,29 @@ local function DecorateButton(button)
     if percentToShow ~= nil then
         local r, g, b = PercentColor(percentToShow)
         if useExternalBadge then
-            button.qfxmtPercentText:SetText("")
+            button.qfxtPercentText:SetText("")
             PositionPercentBadge(button)
-            button.qfxmtPercentBadgeText:SetText(percentToShow .. "%")
-            button.qfxmtPercentBadgeText:SetTextColor(r, g, b, 1)
-            button.qfxmtPercentFrame:SetBackdropBorderColor(r, g, b, 0.90)
-            button.qfxmtPercentFrame:Show()
+            button.qfxtPercentBadgeText:SetText(percentToShow .. "%")
+            button.qfxtPercentBadgeText:SetTextColor(r, g, b, 1)
+            button.qfxtPercentFrame:SetBackdropBorderColor(r, g, b, 0.90)
+            button.qfxtPercentFrame:Show()
         else
-            button.qfxmtPercentFrame:Hide()
-            button.qfxmtPercentBadgeText:SetText("")
-            button.qfxmtPercentText:SetText(percentToShow .. "%")
-            button.qfxmtPercentText:SetTextColor(r, g, b, 1)
+            button.qfxtPercentFrame:Hide()
+            button.qfxtPercentBadgeText:SetText("")
+            button.qfxtPercentText:SetText(percentToShow .. "%")
+            button.qfxtPercentText:SetTextColor(r, g, b, 1)
         end
     else
-        button.qfxmtPercentText:SetText("")
-        button.qfxmtPercentBadgeText:SetText("")
-        button.qfxmtPercentFrame:Hide()
+        button.qfxtPercentText:SetText("")
+        button.qfxtPercentBadgeText:SetText("")
+        button.qfxtPercentFrame:Hide()
     end
 
     if recommended then
         local matches = current and current.entryID == recommended.entryID and current.rank == recommended.rank
-        button.qfxmtMatchMark:SetText(matches and "|cff33ff66✓|r" or "|cffff8a22!|r")
+        button.qfxtMatchMark:SetText(matches and "|cff33ff66✓|r" or "|cffff8a22!|r")
     else
-        button.qfxmtMatchMark:SetText("")
+        button.qfxtMatchMark:SetText("")
     end
 
     if not hookedButtons[button] then
@@ -2023,17 +2023,17 @@ end
 local function ClearTalentDecorations()
     if talentFrame and talentFrame.EnumerateAllTalentButtons then
         for button in talentFrame:EnumerateAllTalentButtons() do
-            if button.qfxmtPercentText then
-                button.qfxmtPercentText:SetText("")
+            if button.qfxtPercentText then
+                button.qfxtPercentText:SetText("")
             end
-            if button.qfxmtPercentBadgeText then
-                button.qfxmtPercentBadgeText:SetText("")
+            if button.qfxtPercentBadgeText then
+                button.qfxtPercentBadgeText:SetText("")
             end
-            if button.qfxmtPercentFrame then
-                button.qfxmtPercentFrame:Hide()
+            if button.qfxtPercentFrame then
+                button.qfxtPercentFrame:Hide()
             end
-            if button.qfxmtMatchMark then
-                button.qfxmtMatchMark:SetText("")
+            if button.qfxtMatchMark then
+                button.qfxtMatchMark:SetText("")
             end
         end
     end
@@ -2041,11 +2041,11 @@ local function ClearTalentDecorations()
     local container = talentFrame and talentFrame.HeroTalentsContainer
     local heroButton = container and container.HeroSpecButton
     if heroButton then
-        if heroButton.qfxmtHeroPercent then
-            heroButton.qfxmtHeroPercent:SetText("")
+        if heroButton.qfxtHeroPercent then
+            heroButton.qfxtHeroPercent:SetText("")
         end
-        if heroButton.qfxmtHeroPercentFrame then
-            heroButton.qfxmtHeroPercentFrame:Hide()
+        if heroButton.qfxtHeroPercentFrame then
+            heroButton.qfxtHeroPercentFrame:Hide()
         end
     end
 end
@@ -2082,13 +2082,13 @@ local function RefreshPanelSelection()
         and sidePanel.ContentScrollBox:GetFrames()
         or {}
     for _, button in ipairs(frames) do
-        local selected = button.qfxmtMode == selectedMode
+        local selected = button.qfxtMode == selectedMode
             and (
-                (selectedMode == "dungeon" and button.qfxmtDungeonID == selectedDungeonID)
+                (selectedMode == "dungeon" and button.qfxtDungeonID == selectedDungeonID)
                 or (
                     selectedMode == "raid"
-                    and button.qfxmtRaidID == selectedRaidID
-                    and button.qfxmtBossID == selectedBossID
+                    and button.qfxtRaidID == selectedRaidID
+                    and button.qfxtBossID == selectedBossID
                 )
             )
         SetButtonSelected(button, selected)
@@ -2116,8 +2116,8 @@ local function SetPanelText(fontString, text)
         return
     end
     text = text or ""
-    if fontString.qfxmtLastText ~= text then
-        fontString.qfxmtLastText = text
+    if fontString.qfxtLastText ~= text then
+        fontString.qfxtLastText = text
         fontString:SetText(text)
     end
 end
@@ -2502,7 +2502,7 @@ local function EnsureSelectionVisual(button)
     local host = CreateFrame("Frame", nil, button)
     host:SetAllPoints(button)
     host:SetFrameLevel(button:GetFrameLevel() + 1)
-    button.qfxmtSelectionHost = host
+    button.qfxtSelectionHost = host
 
     button.Selected = host:CreateTexture(nil, "BACKGROUND", nil, 1)
     button.Selected:SetPoint("TOPLEFT", 2, -2)
@@ -2561,19 +2561,19 @@ SetButtonSelected = function(button, selected)
     button.SelectedTop:SetShown(selected)
     button.SelectedBottom:SetShown(selected)
 
-    if selected and not button.qfxmtIsSelected then
+    if selected and not button.qfxtIsSelected then
         button.SelectedAnimation:Stop()
         button.SelectedAnimation:Play()
     elseif not selected then
         button.SelectedAnimation:Stop()
     end
-    button.qfxmtIsSelected = selected
+    button.qfxtIsSelected = selected
 
     local fontString = button:GetFontString()
-    if fontString and button.qfxmtContentButton then
+    if fontString and button.qfxtContentButton then
         if selected then
             fontString:SetTextColor(0.92, 0.98, 1.00)
-        elseif button.qfxmtHasData == false then
+        elseif button.qfxtHasData == false then
             fontString:SetTextColor(0.50, 0.52, 0.56)
         else
             fontString:SetTextColor(1.00, 0.82, 0.10)
@@ -2582,12 +2582,12 @@ SetButtonSelected = function(button, selected)
 end
 
 local function InitContentRow(button, elementData)
-    if not button.qfxmtRowBuilt then
-        button.qfxmtRowBuilt = true
-        button.qfxmtContentButton = true
+    if not button.qfxtRowBuilt then
+        button.qfxtRowBuilt = true
+        button.qfxtContentButton = true
         button:SetScript("OnEnter", function(self)
             GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-            GameTooltip:SetText(self.qfxmtTooltip or self:GetText() or "")
+            GameTooltip:SetText(self.qfxtTooltip or self:GetText() or "")
             GameTooltip:Show()
         end)
         button:SetScript("OnLeave", GameTooltip_Hide)
@@ -2595,14 +2595,14 @@ local function InitContentRow(button, elementData)
         -- selection data, so rebuilding the list no longer allocates a
         -- closure per entry.
         button:SetScript("OnClick", function(self)
-            if self.qfxmtMode == "dungeon" then
-                if self.qfxmtDungeonID then
-                    SelectDungeon(self.qfxmtDungeonID, false)
+            if self.qfxtMode == "dungeon" then
+                if self.qfxtDungeonID then
+                    SelectDungeon(self.qfxtDungeonID, false)
                 end
-            elseif self.qfxmtMode == "raid"
-                and self.qfxmtRaidID and self.qfxmtBossID
+            elseif self.qfxtMode == "raid"
+                and self.qfxtRaidID and self.qfxtBossID
             then
-                SelectBoss(self.qfxmtRaidID, self.qfxmtBossID, false)
+                SelectBoss(self.qfxtRaidID, self.qfxtBossID, false)
             end
         end)
         EnsureSelectionVisual(button)
@@ -2615,12 +2615,12 @@ local function InitContentRow(button, elementData)
     end
 
     button:SetText(elementData.label)
-    button.qfxmtTooltip = elementData.tooltip or elementData.label
-    button.qfxmtHasData = elementData.hasData
-    button.qfxmtMode = elementData.mode
-    button.qfxmtDungeonID = elementData.dungeonID
-    button.qfxmtRaidID = elementData.raidID
-    button.qfxmtBossID = elementData.bossID
+    button.qfxtTooltip = elementData.tooltip or elementData.label
+    button.qfxtHasData = elementData.hasData
+    button.qfxtMode = elementData.mode
+    button.qfxtDungeonID = elementData.dungeonID
+    button.qfxtRaidID = elementData.raidID
+    button.qfxtBossID = elementData.bossID
     -- Rows are pooled and reinitialized whenever they scroll back into view,
     -- so the selected state is derived here instead of only relying on
     -- RefreshPanelSelection walking the currently acquired frames.
@@ -2633,7 +2633,7 @@ local function InitContentRow(button, elementData)
                 and elementData.bossID == selectedBossID
             )
         )
-    button.qfxmtIsSelected = selected
+    button.qfxtIsSelected = selected
     SetButtonSelected(button, selected)
 end
 

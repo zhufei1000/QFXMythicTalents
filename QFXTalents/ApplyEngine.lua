@@ -4,6 +4,7 @@
 local API = _G.QFXTalents
 
 local pendingCombatRequest
+local combatResumeTimer
 local EMPTY_TRANSLATIONS = {}
 
 local function T()
@@ -237,6 +238,10 @@ local function ApplyText(text, loadoutName)
     if type(text) ~= "string" or text == "" then
         return false, "EMPTY"
     end
+    if combatResumeTimer then
+        combatResumeTimer:Cancel()
+        combatResumeTimer = nil
+    end
     if InCombatLockdown() then
         pendingCombatRequest = {
             text = text,
@@ -245,6 +250,7 @@ local function ApplyText(text, loadoutName)
         Message(T().applyDeferred, 0.45, 0.75, 1)
         return true, "DEFERRED"
     end
+    pendingCombatRequest = nil
     return ApplyNow(text, loadoutName)
 end
 
@@ -256,11 +262,24 @@ engineFrame:SetScript("OnEvent", function()
     end
 
     local pending = pendingCombatRequest
-    pendingCombatRequest = nil
-    C_Timer.After(0.10, function()
-        ApplyNow(pending.text, pending.name)
+    if combatResumeTimer then
+        combatResumeTimer:Cancel()
+    end
+    combatResumeTimer = C_Timer.NewTimer(0.10, function()
+        combatResumeTimer = nil
+        if pendingCombatRequest == pending then
+            pendingCombatRequest = nil
+            ApplyText(pending.text, pending.name)
+        end
     end)
 end)
 
 API.ApplyLoadoutText = ApplyText
 API.ExportCurrentLoadout = ExportCurrentLoadout
+API.CancelPendingLoadout = function()
+    pendingCombatRequest = nil
+    if combatResumeTimer then
+        combatResumeTimer:Cancel()
+        combatResumeTimer = nil
+    end
+end

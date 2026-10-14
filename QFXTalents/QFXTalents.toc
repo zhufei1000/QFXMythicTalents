@@ -1,5 +1,5 @@
-## Interface: 120007, 120100
-## Version: 0.8.0
+## Interface: 120007, 120100, 120105
+## Version: 0.9.3
 ## Title: |cff00ccffQFXTalents|r
 ## Notes: Mythic+ and raid talent recommendations with one-click apply and personal loadouts on the Blizzard talent frame. Requires QFXTalentData.
 ## Notes-zhCN: 在大秘境与团本天赋界面显示推荐天赋，一键直接应用，并可保存与管理本地方案。需要 QFXTalentData 数据库。
@@ -8,11 +8,13 @@
 ## Category-enUS: Dungeons & Raids
 ## Category-zhCN: 地下城和团队副本
 ## Category-zhTW: 地城與團隊
+## X-Curse-Project-ID: 1699924
 ## SavedVariables: QFXTalentsDB
 ## OptionalDeps: QFXTalentData, EllesmereUI
 ## X-QFX-Data-API: 2
 
 EUI.lua
 Core.lua
+HeroRecommendations.lua
 ApplyEngine.lua
 Loadouts.lua

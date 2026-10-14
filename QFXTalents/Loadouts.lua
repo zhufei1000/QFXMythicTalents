@@ -18,7 +18,7 @@ local suppressionAnnounced = false
 local selectedIndex
 local currentExportCache
 local exportRefreshTimer
-local rebuildTimer
+local operationalEventsEnabled = false
 
 local events = CreateFrame("Frame")
 
@@ -34,8 +34,14 @@ local function SpecList()
         return nil
     end
     root.loadouts = root.loadouts or {}
-    local specID = API.GetCurrentSpecID and API:GetCurrentSpecID()
-    local key = tostring(specID or 0)
+    -- Recommendation context may be another player's inspected spec. Personal
+    -- loadouts must always stay in the local player's specialization bucket.
+    local index = GetSpecialization()
+    local specID = index and GetSpecializationInfo(index)
+    if not specID then
+        return nil
+    end
+    local key = tostring(specID)
     root.loadouts[key] = root.loadouts[key] or {}
     return root.loadouts[key]
 end
@@ -171,16 +177,6 @@ local function LoadSelected()
     if entry then
         ApplyText(entry.text, entry.name)
     end
-end
-
-local function RequestRebuild()
-    if rebuildTimer then
-        rebuildTimer:Cancel()
-    end
-    rebuildTimer = C_Timer.NewTimer(0.20, function()
-        rebuildTimer = nil
-        Rebuild()
-    end)
 end
 
 RefreshCurrentExport = function()
@@ -599,6 +595,10 @@ local OPERATIONAL_EVENTS = {
 
 local function SetOperationalEventsEnabled(enabled)
     enabled = not not enabled
+    if operationalEventsEnabled == enabled then
+        return
+    end
+    operationalEventsEnabled = enabled
     for _, event in ipairs(OPERATIONAL_EVENTS) do
         if enabled then
             events:RegisterEvent(event)
@@ -610,6 +610,10 @@ end
 
 ------------------------------------------------------------------
 -- Suppression by the original TalentLoadoutsEx
+--
+-- Interoperability only: this section checks whether that addon is loaded and
+-- yields the panel space to it. No code, text, or assets are shared with it;
+-- the only touch points are its public addon name and main frame name.
 
 local function IsTLERunning()
     return C_AddOns
@@ -624,6 +628,7 @@ local function UpdateSuppression()
     end
     suppressed = now
     if suppressed then
+        Loadouts.OnHidden()
         if section then
             section:Hide()
         end
@@ -655,6 +660,9 @@ function Loadouts.OnShown()
     if suppressed then
         return
     end
+    if operationalEventsEnabled then
+        return
+    end
     SetOperationalEventsEnabled(true)
     selectedIndex = nil
     RefreshCurrentExport()
@@ -663,19 +671,9 @@ end
 
 function Loadouts.OnHidden()
     SetOperationalEventsEnabled(false)
-    if rebuildTimer then
-        rebuildTimer:Cancel()
-        rebuildTimer = nil
-    end
     if exportRefreshTimer then
         exportRefreshTimer:Cancel()
         exportRefreshTimer = nil
-    end
-end
-
-function Loadouts.OnSelectionChanged()
-    if section and section:IsVisible() then
-        RequestRebuild()
     end
 end
 
@@ -696,10 +694,6 @@ events:SetScript("OnEvent", function(_, event, arg1)
         end
         selectedIndex = nil
         currentExportCache = nil
-        if section and section:IsVisible() then
-            RequestRebuild()
-        end
-        return
     end
 
     if event == "PLAYER_REGEN_ENABLED" or event == "PLAYER_REGEN_DISABLED" then
@@ -707,7 +701,9 @@ events:SetScript("OnEvent", function(_, event, arg1)
         return
     end
 
-    if event == "TRAIT_CONFIG_UPDATED" or event == "TRAIT_NODE_CHANGED" then
+    if event == "TRAIT_CONFIG_UPDATED" or event == "TRAIT_NODE_CHANGED"
+        or event == "PLAYER_SPECIALIZATION_CHANGED"
+    then
         -- Trait-state changes refresh the loaded check marks with a short
         -- quiet-period debounce. Restarting the timer for every event keeps an
         -- import event burst to one export and one list rebuild.

@@ -1,0 +1,63 @@
+name: Release QFXTalents
+
+on:
+  push:
+    tags:
+      - "[0-9]*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: qfxtalents-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate release
+        id: version
+        env:
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "${CF_API_TOKEN}"
+          version=$(sed -n 's/^## Version:[[:space:]]*//p' QFXTalents/QFXTalents.toc | head -n 1 | tr -d '\r')
+          test "${GITHUB_REF_NAME}" = "${version}"
+          grep -q '^## Interface:.*120105' QFXTalents/QFXTalents.toc
+          grep -qx '## X-Curse-Project-ID: 1699924' QFXTalents/QFXTalents.toc
+          echo "version=${version}" >> "${GITHUB_OUTPUT}"
+
+      - name: Run talent and loadout regression tests
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq lua5.4
+          lua5.4 QFXTalents/tools/test_apply_engine.lua QFXTalents/ApplyEngine.lua
+          lua5.4 QFXTalents/tools/test_hero_api.lua QFXTalents/Core.lua
+          lua5.4 QFXTalents/tools/test_hero_portrait_usage.lua QFXTalents/Core.lua QFXTalents/HeroRecommendations.lua
+          lua5.4 QFXTalents/tools/test_hero_recommendations.lua QFXTalents/HeroRecommendations.lua
+          lua5.4 QFXTalents/tools/test_loadouts_lifecycle.lua QFXTalents/Loadouts.lua
+          lua5.4 QFXTalents/tools/test_refresh_lifecycle.lua QFXTalents/Core.lua
+
+      - name: Validate runtime package and current release notes
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          python QFXTalents/tools/build_release.py
+          awk -v ver="${VERSION}" 'found && /^## / { exit } $0 == "## " ver { found = 1 } found { print }' CHANGELOG.md > CHANGELOG.tmp
+          test -s CHANGELOG.tmp
+          mv CHANGELOG.tmp CHANGELOG.md
+
+      - name: Publish display addon only
+        uses: BigWigsMods/packager@v2
+        with:
+          args: -p 1699924 -n "QFXTalents_${{ steps.version.outputs.version }}"
+        env:
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}

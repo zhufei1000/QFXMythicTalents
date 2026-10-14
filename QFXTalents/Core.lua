@@ -7,7 +7,7 @@ API.API_VERSION = 1
 API.DATA_API_VERSION = 2
 API.VERSION = C_AddOns and C_AddOns.GetAddOnMetadata
     and C_AddOns.GetAddOnMetadata(ADDON, "Version")
-    or "0.8.0"
+    or "0.9.2"
 API.providers = API.providers or {}
 API.specProviders = API.specProviders or {}
 API.manifest = API.manifest or nil
@@ -141,20 +141,26 @@ function API:GetSpecData(specID)
     return provider and provider.specs[specID] or nil
 end
 
-function API:GetDungeonData(specID, dungeonID)
+function API:GetDungeonData(specID, dungeonID, heroIndex)
     local backend = GetUnifiedDataAPI()
     if backend and type(backend.GetDungeonData) == "function" then
-        return backend:GetDungeonData(dungeonID, specID)
+        local record = backend:GetDungeonData(dungeonID, specID, heroIndex)
+        if heroIndex and heroIndex ~= 1 and not (record and record.heroRecommendations) then return nil end
+        return record
     end
+    if heroIndex and heroIndex ~= 1 then return nil end
     local spec = self:GetSpecData(specID)
     return spec and spec.dungeons and spec.dungeons[dungeonID] or nil
 end
 
-function API:GetRaidData(specID, raidID, bossID, difficultyID)
+function API:GetRaidData(specID, raidID, bossID, difficultyID, heroIndex)
     local backend = GetUnifiedDataAPI()
     if backend and type(backend.GetRaidData) == "function" then
-        return backend:GetRaidData(raidID, bossID, difficultyID, specID)
+        local record = backend:GetRaidData(raidID, bossID, difficultyID, specID, heroIndex)
+        if heroIndex and heroIndex ~= 1 and not (record and record.heroRecommendations) then return nil end
+        return record
     end
+    if heroIndex and heroIndex ~= 1 then return nil end
 
     local spec = self:GetSpecData(specID)
     local raid = spec and spec.raids and spec.raids[raidID]
@@ -168,20 +174,24 @@ function API:GetRaidData(specID, raidID, bossID, difficultyID)
     return boss
 end
 
-function API:GetRecommendedDungeonTalent(specID, dungeonID)
+function API:GetRecommendedDungeonTalent(specID, dungeonID, heroIndex)
     local backend = GetUnifiedDataAPI()
     if backend and type(backend.GetRecommendedDungeonTalent) == "function" then
-        return backend:GetRecommendedDungeonTalent(dungeonID, specID)
+        if heroIndex and heroIndex ~= 1 and not self:GetDungeonData(specID, dungeonID, heroIndex) then return nil end
+        return backend:GetRecommendedDungeonTalent(dungeonID, specID, heroIndex)
     end
+    if heroIndex and heroIndex ~= 1 then return nil end
     local recommendation = self:GetDungeonData(specID, dungeonID)
     return recommendation and recommendation.recommended or nil
 end
 
-function API:GetRecommendedRaidTalent(specID, raidID, bossID, difficultyID)
+function API:GetRecommendedRaidTalent(specID, raidID, bossID, difficultyID, heroIndex)
     local backend = GetUnifiedDataAPI()
     if backend and type(backend.GetRecommendedRaidTalent) == "function" then
-        return backend:GetRecommendedRaidTalent(raidID, bossID, difficultyID, specID)
+        if heroIndex and heroIndex ~= 1 and not self:GetRaidData(specID, raidID, bossID, difficultyID, heroIndex) then return nil end
+        return backend:GetRecommendedRaidTalent(raidID, bossID, difficultyID, specID, heroIndex)
     end
+    if heroIndex and heroIndex ~= 1 then return nil end
     local recommendation = self:GetRaidData(specID, raidID, bossID, difficultyID)
     return recommendation and recommendation.recommended or nil
 end
@@ -313,6 +323,7 @@ local frameEvents = CreateFrame("Frame")
 local talentFrame
 local sidePanel
 local selectedMode = "dungeon"
+local selectedHeroRecommendation = 1
 local selectedDungeonID
 local selectedRaidID
 local selectedBossID
@@ -338,6 +349,7 @@ local operationalEventsEnabled = false
 local pluginSuspended = false
 local blizzardHooksInstalled = false
 local originalEnableCommitCastBar
+local frameOffsetApplied = false
 local percentagesEnabled = true
 local contentDataProvider
 local hookedButtons = setmetatable({}, { __mode = "k" })
@@ -845,10 +857,10 @@ end
 local function GetCurrentRecommendation(specID)
     if selectedMode == "raid" then
         return selectedRaidID and selectedBossID and selectedRaidDifficultyID
-            and API:GetRaidData(specID, selectedRaidID, selectedBossID, selectedRaidDifficultyID)
+            and API:GetRaidData(specID, selectedRaidID, selectedBossID, selectedRaidDifficultyID, selectedHeroRecommendation)
             or nil
     end
-    return selectedDungeonID and API:GetDungeonData(specID, selectedDungeonID) or nil
+    return selectedDungeonID and API:GetDungeonData(specID, selectedDungeonID, selectedHeroRecommendation) or nil
 end
 
 local function CurrentSelectionKey()
@@ -858,9 +870,10 @@ local function CurrentSelectionKey()
             selectedRaidID or 0,
             selectedBossID or 0,
             selectedRaidDifficultyID or 0,
+            selectedHeroRecommendation,
         }, ":")
     end
-    return "dungeon:" .. tostring(selectedDungeonID or 0)
+    return "dungeon:" .. tostring(selectedDungeonID or 0) .. ":" .. selectedHeroRecommendation
 end
 
 local function StateKey(entryID, rank)
@@ -1431,9 +1444,6 @@ local function QueueStatisticsBuild(specID, recommendation, key)
             repeat
                 hasMore = ProcessStatisticsSample(builder)
             until not hasMore or GetTime() >= budget
-            if collectgarbage then
-                collectgarbage("step", 8)
-            end
             if hasMore then
                 C_Timer.After(0, ProcessNext)
                 return
@@ -1445,6 +1455,7 @@ local function QueueStatisticsBuild(specID, recommendation, key)
             end
             currentStats = statistics
             currentStatsKey = key
+            currentStatesDirty = true
             pendingStatisticsKey = nil
             ScheduleRefresh(0, true)
         end
@@ -1514,8 +1525,7 @@ local function GetCurrentNodeState(button)
         return nil, nodeID, nil
     end
 
-    -- Current selections are cached directly from C_Traits. Browsing another
-    -- dungeon or boss reuses this table and performs no import-string work.
+    -- Current selections are cached from C_Traits for this recommendation.
     if currentStates then
         return currentStates[nodeID], nodeID, nodeInfo
     end
@@ -1606,6 +1616,23 @@ local function EnsureButtonRegions(button)
         mark:SetShadowOffset(1, -1)
         mark:SetShadowColor(0, 0, 0, 1)
         button.qfxtMatchMark = mark
+    end
+
+    if not button.qfxtMatchCheck then
+        -- The mark FontString only ever shows "!" (plain ASCII, present in every
+        -- font). The green check used to be the U+2713 glyph, which is missing
+        -- from many CJK fonts (e.g. trimmed / replaced Microsoft YaHei builds),
+        -- so it is drawn with a Blizzard texture instead of text.
+        -- ReadyCheck-Ready is the thick raid-ready check; the mark sits on the
+        -- upper right inside the button (2 o'clock, clear of the rank number),
+        -- well within the icon, so node connection lines (which stop 20%
+        -- outside the node, CircleEdgeDiameterOffset = 1.2) can never cover it.
+        local check = button:CreateTexture(nil, "OVERLAY")
+        check:SetSize(24, 24)
+        check:SetPoint("CENTER", button, "RIGHT", -16, 8)
+        check:SetTexture("Interface\\RaidFrame\\ReadyCheck-Ready")
+        check:Hide()
+        button.qfxtMatchCheck = check
     end
 end
 
@@ -1817,9 +1844,18 @@ local function DecorateHeroSpecButton()
         return
     end
 
-    -- Hero specialization is a pure choice. Count the selected subtree entry,
-    -- independent of rank, and always display the full 0%–100% range.
-    local percent = GetEntryUsagePercent(currentStats, nodeID, current.entryID)
+    -- The hero portrait represents overall hero usage, not a node within its subset.
+    local recommendation = GetCurrentRecommendation(currentSpecID)
+    local subtreeID = container.activeSubTreeInfo and container.activeSubTreeInfo.ID
+    local percent = ns.GetHeroUsagePercent(recommendation, subtreeID)
+    if percent == nil then
+        if recommendation and recommendation.heroRecommendations then
+            button.qfxtHeroPercent:SetText("")
+            button.qfxtHeroPercentFrame:Hide()
+            return
+        end
+        percent = GetEntryUsagePercent(currentStats, nodeID, current.entryID)
+    end
     local r, g, b = PercentColor(percent)
     PositionHeroSpecBadge(button)
     button.qfxtHeroPercent:SetText(percent .. "%")
@@ -1953,6 +1989,9 @@ local function DecorateButton(button)
         if button.qfxtMatchMark then
             button.qfxtMatchMark:SetText("")
         end
+        if button.qfxtMatchCheck then
+            button.qfxtMatchCheck:Hide()
+        end
         return
     end
     EnsureButtonRegions(button)
@@ -2007,9 +2046,16 @@ local function DecorateButton(button)
 
     if recommended then
         local matches = current and current.entryID == recommended.entryID and current.rank == recommended.rank
-        button.qfxtMatchMark:SetText(matches and "|cff33ff66✓|r" or "|cffff8a22!|r")
+        if matches then
+            button.qfxtMatchMark:SetText("")
+            button.qfxtMatchCheck:Show()
+        else
+            button.qfxtMatchMark:SetText("|cffff8a22!|r")
+            button.qfxtMatchCheck:Hide()
+        end
     else
         button.qfxtMatchMark:SetText("")
+        button.qfxtMatchCheck:Hide()
     end
 
     if not hookedButtons[button] then
@@ -2034,6 +2080,9 @@ local function ClearTalentDecorations()
             end
             if button.qfxtMatchMark then
                 button.qfxtMatchMark:SetText("")
+            end
+            if button.qfxtMatchCheck then
+                button.qfxtMatchCheck:Hide()
             end
         end
     end
@@ -2103,9 +2152,6 @@ local function RefreshPanelSelection()
         SetButtonSelected(sidePanel.RaidTab, selectedMode == "raid")
     end
 
-    if API.Loadouts and API.Loadouts.OnSelectionChanged then
-        pcall(API.Loadouts.OnSelectionChanged)
-    end
 end
 
 -- Panel labels change on every refresh (selection, sample counts, status).
@@ -2129,7 +2175,7 @@ local function UpdatePanelText(statusText)
 
     if not API:IsDataReady(currentSpecID) then
         SetPanelText(sidePanel.Sample, DataStatusText())
-        sidePanel.ImportButton:Disable()
+        ns.UpdateHeroRecommendationButtons(sidePanel, nil, false)
         SetPanelText(sidePanel.Status, "")
         SetPanelText(sidePanel.DataVersion, "")
         return
@@ -2137,15 +2183,18 @@ local function UpdatePanelText(statusText)
 
     local recommendation = currentSpecID and GetCurrentRecommendation(currentSpecID)
     if recommendation and currentStats then
-        local sampleTarget = tonumber(recommendation.sampleCount) or #(recommendation.samples or {})
-        SetPanelText(sidePanel.Sample, string.format("%s：%d/%d", T.sample, currentStats.validSamples or 0, sampleTarget))
-        sidePanel.ImportButton:Enable()
+        local sampleTarget = tonumber(recommendation.sourceRankLimit)
+            or tonumber(recommendation.sampleCount) or #(recommendation.samples or {})
+        local sampleCount = recommendation.heroRecommendations
+            and tonumber(recommendation.sampleCount) or currentStats.validSamples or 0
+        SetPanelText(sidePanel.Sample, string.format("%s：%d/%d", T.sample, sampleCount, sampleTarget))
+        ns.UpdateHeroRecommendationButtons(sidePanel, recommendation, true)
     elseif recommendation then
         SetPanelText(sidePanel.Sample, T.parsing)
-        sidePanel.ImportButton:Disable()
+        ns.UpdateHeroRecommendationButtons(sidePanel, recommendation, false)
     else
         SetPanelText(sidePanel.Sample, T.noData)
-        sidePanel.ImportButton:Disable()
+        ns.UpdateHeroRecommendationButtons(sidePanel, nil, false)
     end
 
     SetPanelText(sidePanel.DataVersion, DataStatusText())
@@ -2203,13 +2252,7 @@ local function RefreshOverlay()
     local treeID = talentFrame:GetTalentTreeID()
     local configID = talentFrame:GetConfigID()
     if not treeID or not configID then
-        C_Timer.After(0.15, function()
-            if talentFrame and talentFrame:IsVisible()
-                and sidePanel and sidePanel:IsShown()
-            then
-                RefreshOverlay()
-            end
-        end)
+        ScheduleRefresh(0.15, forceDecoration)
         return
     end
 
@@ -2219,6 +2262,8 @@ local function RefreshOverlay()
         local newBuild = pendingStatisticsKey ~= key
         currentStats = nil
         currentStatsKey = nil
+        currentStates = nil
+        currentStatesDirty = true
         QueueStatisticsBuild(currentSpecID, recommendation, key)
         if newBuild then
             -- Clear the previous recommendation immediately. The selected
@@ -2273,15 +2318,24 @@ local function CancelRefresh()
 end
 
 local function ResetRecommendationState()
+    selectedHeroRecommendation = 1
     CancelStatisticsBuild()
     currentStats = nil
     currentStatsKey = nil
+    currentStates = nil
+    currentStatesDirty = true
 end
 
 local RebuildContentButtons
 
 local function SelectDungeon(dungeonID, automatic)
     if not dungeonID then
+        return
+    end
+    if selectedMode == "dungeon" and selectedDungeonID == dungeonID
+        and selectedHeroRecommendation == 1
+    then
+        UpdatePanelText(automatic and T.auto or T.manual)
         return
     end
     selectedMode = "dungeon"
@@ -2296,6 +2350,12 @@ end
 
 local function SelectBoss(raidID, bossID, automatic)
     if not raidID or not bossID then
+        return
+    end
+    if selectedMode == "raid" and selectedRaidID == raidID and selectedBossID == bossID
+        and selectedHeroRecommendation == 1
+    then
+        UpdatePanelText(automatic and T.auto or T.manual)
         return
     end
     selectedMode = "raid"
@@ -2314,6 +2374,12 @@ end
 
 local function SelectRaidDifficulty(difficultyID, automatic)
     if difficultyID ~= RAID_DIFFICULTY_HEROIC and difficultyID ~= RAID_DIFFICULTY_MYTHIC then
+        return
+    end
+    if selectedMode == "raid" and selectedRaidDifficultyID == difficultyID
+        and selectedHeroRecommendation == 1
+    then
+        UpdatePanelText(automatic and T.auto or T.manual)
         return
     end
     selectedMode = "raid"
@@ -2337,12 +2403,17 @@ local function SetMode(mode)
     if mode == "raid" and #GetRaids() == 0 then
         return
     end
+    if selectedMode == mode then
+        return
+    end
     selectedMode = mode
     QFXTalentsDB.lastMode = mode
     ResetRecommendationState()
     if RebuildContentButtons then
         RebuildContentButtons()
     end
+    UpdatePanelText()
+    ScheduleRefresh(0)
 end
 
 local function AutoSelectContent()
@@ -2357,23 +2428,24 @@ local function AutoSelectContent()
             bossID = raid and raid.bosses and raid.bosses[1] and raid.bosses[1].id
         end
         if raidID and bossID then
-            selectedMode = "raid"
-            selectedRaidDifficultyID = DetectRaidDifficulty() or selectedRaidDifficultyID
+            local difficultyID = DetectRaidDifficulty() or selectedRaidDifficultyID
+            if selectedRaidDifficultyID ~= difficultyID then
+                SelectRaidDifficulty(difficultyID, true)
+            end
+            SelectBoss(raidID, bossID, true)
             if RebuildContentButtons then
                 RebuildContentButtons()
             end
-            SelectBoss(raidID, bossID, true)
             return
         end
     end
 
-    selectedMode = "dungeon"
-    if RebuildContentButtons then
-        RebuildContentButtons()
-    end
     local detected = DetectDungeon()
     if detected then
         SelectDungeon(detected, true)
+        if RebuildContentButtons then
+            RebuildContentButtons()
+        end
         return
     end
 
@@ -2386,9 +2458,12 @@ local function AutoSelectContent()
             SelectDungeon(dungeons[1].id, false)
         end
     end
+    if RebuildContentButtons then
+        RebuildContentButtons()
+    end
 end
 
-local function GetRecommendedLoadoutName()
+local function GetRecommendedLoadoutName(heroIndex)
     local spec = GetSpecData(currentSpecID)
     local contentSlug
     if selectedMode == "raid" then
@@ -2399,24 +2474,30 @@ local function GetRecommendedLoadoutName()
         local dungeon = FindDungeon(selectedDungeonID)
         contentSlug = dungeon and dungeon.slug or "MPlus"
     end
-    local name = "QFX_" .. contentSlug .. "_" .. (spec and spec.name or tostring(currentSpecID))
+    local recommendation = currentSpecID and GetCurrentRecommendation(currentSpecID)
+    local hero = recommendation and recommendation.heroRecommendations
+    hero = hero and hero[heroIndex or selectedHeroRecommendation]
+    local name = "QFX_" .. (hero and ("H" .. hero.subtreeID .. "_") or "")
+        .. contentSlug .. "_" .. (spec and spec.name or tostring(currentSpecID))
     name = name:gsub("[^%w_-]", "")
     return name:sub(1, 45)
 end
 
-local function OpenImport()
+local function OpenImport(heroIndex)
     local recommendationText
     if selectedMode == "raid" then
         recommendationText = API:GetRecommendedRaidTalent(
             currentSpecID,
             selectedRaidID,
             selectedBossID,
-            selectedRaidDifficultyID
+            selectedRaidDifficultyID,
+            heroIndex
         )
     else
         recommendationText = API:GetRecommendedDungeonTalent(
             currentSpecID,
-            selectedDungeonID
+            selectedDungeonID,
+            heroIndex
         )
     end
     if not recommendationText or recommendationText == "" then
@@ -2434,38 +2515,46 @@ local function OpenImport()
     ClassTalentLoadoutImportDialog:ShowDialog()
     ClassTalentLoadoutImportDialog.ImportControl:SetText(recommendationText)
 
-    ClassTalentLoadoutImportDialog.NameControl:SetText(GetRecommendedLoadoutName())
+    ClassTalentLoadoutImportDialog.NameControl:SetText(GetRecommendedLoadoutName(heroIndex))
 end
 
-local function GetCurrentRecommendationText()
+local function GetCurrentRecommendationText(heroIndex)
+    heroIndex = heroIndex or selectedHeroRecommendation
     if selectedMode == "raid" then
         return selectedRaidID and selectedBossID and selectedRaidDifficultyID
             and API:GetRecommendedRaidTalent(
                 currentSpecID,
                 selectedRaidID,
                 selectedBossID,
-                selectedRaidDifficultyID
+                selectedRaidDifficultyID,
+                heroIndex
             )
             or nil
     end
     return selectedDungeonID
-        and API:GetRecommendedDungeonTalent(currentSpecID, selectedDungeonID)
+        and API:GetRecommendedDungeonTalent(currentSpecID, selectedDungeonID, heroIndex)
         or nil
 end
 
-local function ApplyRecommendation()
-    local recommendationText = GetCurrentRecommendationText()
+local function ApplyRecommendation(heroIndex)
+    local recommendationText = GetCurrentRecommendationText(heroIndex)
     if not recommendationText or recommendationText == "" then
         if UIErrorsFrame then
             UIErrorsFrame:AddMessage(T.noData, 1, 0.4, 0.2)
         end
         return
     end
+    heroIndex = heroIndex or 1
+    if selectedHeroRecommendation ~= heroIndex then
+        ResetRecommendationState()
+        selectedHeroRecommendation = heroIndex
+        ScheduleRefresh(0)
+    end
     if not API.ApplyLoadoutText then
-        OpenImport()
+        OpenImport(heroIndex)
         return
     end
-    API.ApplyLoadoutText(recommendationText, GetRecommendedLoadoutName())
+    API.ApplyLoadoutText(recommendationText, GetRecommendedLoadoutName(heroIndex))
 end
 
 local selectionVisualButtons = setmetatable({}, { __mode = "k" })
@@ -2671,8 +2760,8 @@ RebuildContentButtons = function()
     if selectedMode == "raid" then
         for _, raid in ipairs(GetRaids()) do
             for _, boss in ipairs(raid.bosses or {}) do
-                local hasData = currentSpecID and API:GetRaidData(
-                    currentSpecID, raid.id, boss.id, selectedRaidDifficultyID
+                local hasData = currentSpecID and API:GetRecommendedRaidTalent(
+                    currentSpecID, raid.id, boss.id, selectedRaidDifficultyID, 1
                 ) ~= nil
                 local tooltip = RaidName(raid) .. " - " .. BossName(boss)
                     .. " · " .. RaidDifficultyName(selectedRaidDifficultyID)
@@ -2746,6 +2835,7 @@ local function PositionSidePanel()
     -- Dock to the right edge of the talent frame at exactly the Blizzard
     -- frame's current height. When TalentLoadoutsEx is visible, only the
     -- horizontal anchor changes; vertical sizing still follows PlayerSpellsFrame.
+    -- Existence check only: no code, text, or assets are shared with that addon.
     local anchorFrame = PlayerSpellsFrame
     if API.Loadouts and API.Loadouts.IsSuppressed and API.Loadouts:IsSuppressed() then
         local tleFrame = _G.TalentLoadoutExMainFrame
@@ -2866,15 +2956,16 @@ local function CreateSidePanel()
     ns.RegisterEUISkin(sidePanel.RaidTab, "buttonLabel")
     sidePanel.RaidTab:SetText(locale == "zhCN" and "团本" or locale == "zhTW" and "團本" or "Raid")
     sidePanel.RaidTab:SetScript("OnClick", function()
-        selectedMode = "raid"
-        selectedRaidDifficultyID = DetectRaidDifficulty() or selectedRaidDifficultyID
         local raid = FindRaid(selectedRaidID) or GetRaids()[1]
         local boss = raid and raid.bosses and raid.bosses[1]
         if raid and boss then
-            selectedRaidID = raid.id
-            selectedBossID = FindBoss(raid.id, selectedBossID) and selectedBossID or boss.id
+            local bossID = FindBoss(raid.id, selectedBossID) and selectedBossID or boss.id
+            local difficultyID = DetectRaidDifficulty() or selectedRaidDifficultyID
             SetMode("raid")
-            SelectBoss(selectedRaidID, selectedBossID, false)
+            if selectedRaidDifficultyID ~= difficultyID then
+                SelectRaidDifficulty(difficultyID, false)
+            end
+            SelectBoss(raid.id, bossID, false)
         end
     end)
 
@@ -2921,7 +3012,7 @@ local function CreateSidePanel()
     sidePanel.Footer = CreateFrame("Frame", nil, sidePanel)
     sidePanel.Footer:SetPoint("BOTTOMLEFT", sidePanel.LoadoutSection, "TOPLEFT", 0, 0)
     sidePanel.Footer:SetPoint("BOTTOMRIGHT", sidePanel.LoadoutSection, "TOPRIGHT", 0, 0)
-    sidePanel.Footer:SetHeight(111)
+    sidePanel.Footer:SetHeight(140)
 
     sidePanel.Footer.Background = sidePanel.Footer:CreateTexture(nil, "BACKGROUND")
     sidePanel.Footer.Background:SetAllPoints()
@@ -2955,12 +3046,9 @@ local function CreateSidePanel()
     sidePanel.DataVersion:SetTextColor(0.45, 0.72, 0.82)
     ns.RegisterEUISkin(sidePanel.DataVersion, "font")
 
-    sidePanel.ImportButton = CreateFrame("Button", nil, sidePanel.Footer, "UIPanelButtonTemplate")
-    sidePanel.ImportButton:SetSize(184, 25)
-    sidePanel.ImportButton:SetPoint("BOTTOM", 0, 31)
-    sidePanel.ImportButton:SetText(T.apply)
-    sidePanel.ImportButton:SetScript("OnClick", ApplyRecommendation)
-    ns.RegisterEUISkin(sidePanel.ImportButton, "buttonLabel")
+    sidePanel.ImportButton, sidePanel.ImportButtonTwo = ns.CreateHeroRecommendationButtons(
+        sidePanel.Footer, ApplyRecommendation
+    )
 
     sidePanel.PercentageToggleButton = CreateFrame("Button", nil, sidePanel.Footer, "UIPanelButtonTemplate")
     sidePanel.PercentageToggleButton:SetSize(184, 25)
@@ -3007,8 +3095,25 @@ local function CreateSidePanel()
     UpdateFooterAnchor()
 end
 
+local function AdjustTalentFrameOffset()
+    if frameOffsetApplied or pluginSuspended or InCombatLockdown()
+        or not PlayerSpellsFrame or not PlayerSpellsFrame:IsVisible() or not sidePanel
+    then
+        return
+    end
+    local halfWidth = sidePanel:GetWidth() / 2
+    if halfWidth > 0 then
+        frameOffsetApplied = pcall(PlayerSpellsFrame.AdjustPointsOffset, PlayerSpellsFrame, -halfWidth, 0)
+    end
+end
+
 local function ShowPanel()
     if pluginSuspended then
+        return
+    end
+    if sidePanel and sidePanel:IsShown() and currentSpecID == CurrentSpecID() then
+        AdjustTalentFrameOffset()
+        PositionSidePanel()
         return
     end
     currentSpecID = CurrentSpecID()
@@ -3018,6 +3123,7 @@ local function ShowPanel()
     end
     PositionSidePanel()
     sidePanel:Show()
+    AdjustTalentFrameOffset()
     if talentFrame then
         talentFrame.enableCommitCastBar = false
     end
@@ -3036,7 +3142,6 @@ local function ShowPanel()
         AutoSelectContent()
     else
         RebuildContentButtons()
-        RefreshPanelSelection()
         UpdatePanelText()
     end
     ScheduleRefresh(0.08, true)
@@ -3082,6 +3187,9 @@ end
 
 SuspendAddon = function()
     pluginSuspended = true
+    if API.CancelPendingLoadout then
+        API.CancelPendingLoadout()
+    end
     GameTooltip_Hide()
     ClearTalentDecorations()
     HidePanel()
@@ -3155,14 +3263,10 @@ local function RecoverPanelAfterNativeTransition()
 
         PositionSidePanel()
         currentSpecID = CurrentSpecID()
-        currentStats = nil
-        currentStatsKey = nil
-        currentStates = nil
         currentStatesDirty = true
-        currentStatesContextKey = nil
-        treeContext = nil
-        CancelStatisticsBuild()
-        ScheduleRefresh(0.03)
+        -- RefreshOverlay's context key rebuilds statistics only if the tree,
+        -- config, content or hero recommendation actually changed.
+        ScheduleRefresh(0.03, true)
     end)
 end
 
@@ -3205,8 +3309,10 @@ local function InitializeBlizzardUI()
     PlayerSpellsFrame:HookScript("OnShow", ScheduleVisibilitySync)
     PlayerSpellsFrame:HookScript("OnHide", ScheduleVisibilitySync)
     hooksecurefunc(PlayerSpellsFrame, "SetInspecting", function()
+        if pluginSuspended then
+            return
+        end
         currentSpecID = CurrentSpecID()
-        EnsureDataLoaded(currentSpecID, CurrentClassToken())
         currentStats = nil
         currentStatsKey = nil
         currentStates = nil
@@ -3215,6 +3321,7 @@ local function InitializeBlizzardUI()
         treeContext = nil
         CancelStatisticsBuild()
         if IsTalentFrameVisible() then
+            EnsureDataLoaded(currentSpecID, CurrentClassToken())
             ScheduleRefresh(0.03, true)
         end
     end)
@@ -3227,15 +3334,10 @@ local function InitializeBlizzardUI()
     -- The full-height side strip occupies the space right of the Blizzard
     -- frame; shift the frame by half the strip width so both stay centered.
     -- Dynamic panel layout offsets reset between show cycles, so re-applying
-    -- on each Show matches how other side panels behave.
-    hooksecurefunc(PlayerSpellsFrame, "Show", function()
-        if pluginSuspended or InCombatLockdown() or not sidePanel then
-            return
-        end
-        local halfWidth = sidePanel:GetWidth() / 2
-        if halfWidth > 0 then
-            pcall(PlayerSpellsFrame.AdjustPointsOffset, PlayerSpellsFrame, -halfWidth, 0)
-        end
+    -- on each visibility transition avoids repeated Show() calls accumulating it.
+    PlayerSpellsFrame:HookScript("OnShow", function()
+        frameOffsetApplied = false
+        AdjustTalentFrameOffset()
     end)
 
     if talentFrame:IsVisible() then
@@ -3263,6 +3365,7 @@ local function OpenTalentFrame()
 end
 
 API.OpenTalentFrame = OpenTalentFrame
+API.SetPercentagesEnabled = SetPercentagesEnabled
 API.GetTalentFrame = function()
     return talentFrame
 end
@@ -3345,7 +3448,6 @@ frameEvents:SetScript("OnEvent", function(_, event, arg1)
         end
 
         InitializeBlizzardUI()
-        print("|cff00ccffQFXTalents|r：" .. T.command)
         return
     end
 
@@ -3401,6 +3503,7 @@ frameEvents:SetScript("OnEvent", function(_, event, arg1)
     end
 
     if event == "PLAYER_SPECIALIZATION_CHANGED" or event == "ACTIVE_PLAYER_SPECIALIZATION_CHANGED" then
+        selectedHeroRecommendation = 1
         currentSpecID = CurrentSpecID()
         currentStats = nil
         currentStatsKey = nil
@@ -3425,14 +3528,14 @@ frameEvents:SetScript("OnEvent", function(_, event, arg1)
             raidID = raid and raid.id or nil
         end
         if raidID and FindBoss(raidID, arg1) then
-            selectedMode = "raid"
-            selectedRaidID = raidID
-            selectedBossID = arg1
-            selectedRaidDifficultyID = DetectRaidDifficulty() or selectedRaidDifficultyID
+            local difficultyID = DetectRaidDifficulty() or selectedRaidDifficultyID
+            if selectedRaidDifficultyID ~= difficultyID then
+                SelectRaidDifficulty(difficultyID, true)
+            end
+            SelectBoss(raidID, arg1, true)
             if RebuildContentButtons then
                 RebuildContentButtons()
             end
-            SelectBoss(raidID, arg1, true)
         end
     elseif event == "PLAYER_ENTERING_WORLD" or event == "ZONE_CHANGED_NEW_AREA" or event == "CHALLENGE_MODE_START" then
         if IsTalentFrameVisible() then

@@ -1,0 +1,20 @@
+package-as: QFXTalents
+manual-changelog:
+  filename: CHANGELOG.md
+  markup-type: markdown
+move-folders:
+  QFXTalents/QFXTalents: QFXTalents
+ignore:
+  - .github
+  - .gitignore
+  - AGENTS.md
+  - CHANGELOG.md
+  - README.md
+  - QFXTalents/README.md
+  - QFXTalents/tools
+  - releases
+  - tests
+  - audit-results
+  - live-backups
+  - manual-collection-results
+  - .workbuddy

@@ -8,7 +8,10 @@ personal loadout list.
 
 - Dungeon and raid boss recommendations for the current specialization
 - One-click apply through Blizzard's native loadout importer
-- Node choice rates computed from compact pre-collected sample data
+- Separate hero-talent recommendations with sampled usage percentages and hero
+  names on hover; recommendation two is disabled when only one hero is sampled
+- Hero portrait usage measured across all samples; node choice rates measured
+  within the selected hero's samples, using compact pre-collected data
 - Personal loadouts (save / load / rename / delete / reorder) per specialization
 - Personal loadouts apply through the same native importer, and auto-generated
   recommendation loadouts are pruned so the loadout list never accumulates them

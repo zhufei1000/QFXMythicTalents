@@ -4,6 +4,14 @@ local imported = {}
 local messages = {}
 local inCombat = false
 local eventHandler
+local timers = {}
+local function RunTimers()
+    local queued = timers
+    timers = {}
+    for _, timer in ipairs(queued) do
+        if not timer.cancelled then timer.callback() end
+    end
+end
 
 _G.QFXTalents = {
     T = {
@@ -49,6 +57,11 @@ _G.C_Timer = {
     After = function(_, callback)
         callback()
     end,
+    NewTimer = function(_, callback)
+        local timer = {callback = callback, Cancel = function(self) self.cancelled = true end}
+        timers[#timers + 1] = timer
+        return timer
+    end,
 }
 _G.CreateFrame = function()
     return {
@@ -81,6 +94,7 @@ assert(#imported == 2)
 inCombat = false
 assert(eventHandler)
 eventHandler(nil, "PLAYER_REGEN_ENABLED")
+RunTimers()
 assert(#imported == 3)
 assert(imported[3].text == "DEFERRED" and imported[3].name == "Deferred Name")
 
@@ -199,5 +213,44 @@ assert(
 )
 assert(configs[42] ~= nil, "the active config must survive an in-place import")
 
+local beforeCombatTests = #imported
+inCombat = true
+assert(_G.QFXTalents.ApplyLoadoutText("REENTER", "Personal"))
+inCombat = false
+eventHandler(nil, "PLAYER_REGEN_ENABLED")
+inCombat = true
+RunTimers()
+assert(#imported == beforeCombatTests, "re-entering combat must defer the native import again")
+inCombat = false
+eventHandler(nil, "PLAYER_REGEN_ENABLED")
+RunTimers()
+assert(imported[#imported].text == "REENTER")
+
+inCombat = true
+_G.QFXTalents.ApplyLoadoutText("STALE", "Personal")
+inCombat = false
+eventHandler(nil, "PLAYER_REGEN_ENABLED")
+_G.QFXTalents.ApplyLoadoutText("LATEST", "Personal")
+local afterLatest = #imported
+RunTimers()
+assert(#imported == afterLatest and imported[#imported].text == "LATEST",
+    "a newer request must cancel the delayed stale request")
+
+inCombat = true
+_G.QFXTalents.ApplyLoadoutText("CANCELLED", "Personal")
+inCombat = false
+eventHandler(nil, "PLAYER_REGEN_ENABLED")
+_G.QFXTalents.CancelPendingLoadout()
+RunTimers()
+assert(#imported == afterLatest, "suspending the addon must cancel a pending combat import")
+inCombat = true
+_G.QFXTalents.ApplyLoadoutText("CANCEL BEFORE REGEN", "Personal")
+_G.QFXTalents.CancelPendingLoadout()
+inCombat = false
+eventHandler(nil, "PLAYER_REGEN_ENABLED")
+RunTimers()
+assert(#imported == afterLatest)
+
 print("ApplyEngine official-only import/export tests passed")
 print("ApplyEngine auto-config pruning tests passed")
+print("ApplyEngine combat re-entry and latest-request tests passed")

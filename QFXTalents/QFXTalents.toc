@@ -1,5 +1,5 @@
 ## Interface: 120007, 120100, 120105
-## Version: 0.9.3
+## Version: 0.9.4
 ## Title: |cff00ccffQFXTalents|r
 ## Notes: Mythic+ and raid talent recommendations with one-click apply and personal loadouts on the Blizzard talent frame. Requires QFXTalentData.
 ## Notes-zhCN: 在大秘境与团本天赋界面显示推荐天赋，一键直接应用，并可保存与管理本地方案。需要 QFXTalentData 数据库。
